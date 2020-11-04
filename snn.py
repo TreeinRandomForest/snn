@@ -95,7 +95,7 @@ def create_spike_train_simple(img):
     return result, delays
 
 def create_spike_train(img):
-    H, W, _ = img.shape
+    H, W = img.shape
 
     #thresholds = [np.inf] + [1000./i for i in range(1, 11)] + [1000./20]
     thresholds = [1000./i for i in range(1, 11)] + [1000./20]
@@ -149,23 +149,50 @@ def convolve(img, f):
 
     assert(C==D)
 
-    res = np.zeros((H, W, N))
+    res = np.zeros((T, H, W, N))
     
-    for n in range(N): #loop over filters
-        
-        #loop over image dimensions
-        for i in range(H):
-            for j in range(W):
+    for t in range(T):
+        for n in range(N): #loop over filters
+            
+            #loop over image dimensions
+            for i in range(H):
+                for j in range(W):
 
-                #loop over filter elements
-                for c in range(C):
-                    for f1 in range(S1):
-                        for f2 in range(S2):
-                            #res[i][j][n] += img[][][] * f[][][][n] abstract structure
-                            if 0 <= i+f1-S1 < H and 0 <= j+f2-S2 < W:
-                                res[i][j][n] += img[i + f1 - S1][j + f2 - S2][c] * f[f1][f2][c][n]
+                    #loop over filter elements
+                    for c in range(C):
+                        for f1 in range(S1):
+                            for f2 in range(S2):
+                                #res[i][j][n] += img[][][] * f[][][][n] abstract structure
+                                if 0 <= i+f1-S1 < H and 0 <= j+f2-S2 < W:
+                                    res[t][i][j][n] += img[t][i + f1 - S1][j + f2 - S2][c] * f[f1][f2][c][n]
 
     return res
+
+def lateral_inhibition(v2):
+    T, H, W, C = v2.shape
+
+    v2_inh = v2.copy()
+
+    for i in range(H):
+        for j in range(W):
+            #search over all time and channels
+            idx_t, idx_c = 0, 0
+            max_val = v2[idx_t][i][j][idx_c]
+
+            for t in range(T):
+                for c in range(C):
+                    if v2[idx_t][i][j][idx_c] > max_val:
+                        max_val = v2[idx_t][i][j][idx_c]
+                        idx_t = t
+                        idx_c = c
+
+            #set every other value to 0 - have to loop again
+            for t in range(T):
+                for c in range(C):
+                    if t != idx_t or c!=idx_c:
+                        v2_inh[t][i][j][c] = 0
+
+    return v2_inh
 
 
 def seq(img):
@@ -178,8 +205,8 @@ def seq(img):
     off_center_filter = -on_center_filter
 
     #convolution with on/off filters
-    img_on = convolve(img, on_center_filter)
-    img_off = convolve(img, off_center_filter)
+    img_on = convolve(img, on_center_filter).squeeze()
+    img_off = convolve(img, off_center_filter).squeeze()
 
     #rescale before computing spike trains
     #img_on = rescale(img_on.squeeze())
