@@ -60,9 +60,6 @@ def convolve(img, f):
     return res
 '''
 
-def rescale(img):
-    return ((img - np.min(img)) / (np.max(img) - np.min(img)) * 255.).astype(int)
-
 def create_spike_train_simple(img):
     H, W = img.squeeze().shape
 
@@ -121,15 +118,6 @@ def create_spike_train(img):
 
     return img_list
 
-def create_spike_train_after_scaling(img):
-    H, W = img.shape
-
-    img_list = []
-    for p in range(255, GAMMA, -1): 
-        img_list.append((img==p).astype(int))
-
-    return img_list
-
 def plot_spike_train(img_list):
     plt.figure()
     for i in range(len(img_list)):
@@ -148,12 +136,12 @@ def initialize_filters_l1_to_l2(size=5, channels=2, n=30):
 
 def convolve(img, f):
     if len(img.shape)==2: #1 channel
-        img = np.expand_dims(img, axis=2)
+        img = np.expand_dims(img, axis=[0,3])
     
     if len(f.shape)==2: #1 channel, 1 filter
         f = np.expand_dims(f, axis=[2,3])
 
-    H, W, C = img.shape #(height, width, channels)
+    T, H, W, C = img.shape #(height, width, channels)
     #channels -> (RGB) -> 3
     #channels -> 0/1 -> off DoG/on DoG
 
@@ -205,7 +193,7 @@ def seq(img):
     assert(len(spike_train_on)==len(spike_train_off))
 
     #create stacked on/off images for each time - should remove any time that has no spikes
-    spike_train_stacked = [np.stack([on,off], axis=2) for (on,off) in zip(spike_train_on, spike_train_off)]
+    spike_train_stacked = np.array([np.stack([on,off], axis=2) for (on,off) in zip(spike_train_on, spike_train_off)]).squeeze()
 
     #initialize filters randomly for L1 -> L2
     w = initialize_filters_l1_to_l2(size=5, channels=2, n=30)
